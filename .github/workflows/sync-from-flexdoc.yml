@@ -1,4 +1,5 @@
 name: Sync from FlexDoc monorepo
+run-name: Sync PHP distribution from FlexDoc
 
 on:
   push:
