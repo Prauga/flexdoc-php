@@ -1,0 +1,56 @@
+name: Sync from FlexDoc monorepo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/sync-from-flexdoc.yml'
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-from-flexdoc
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out PHP distribution repository
+        uses: actions/checkout@v6
+        with:
+          path: mirror
+
+      - name: Check out canonical FlexDoc source
+        uses: actions/checkout@v6
+        with:
+          repository: Prauga/flexdoc
+          ref: main
+          path: source
+
+      - name: Synchronize PHP package
+        run: |
+          find mirror -mindepth 1 -maxdepth 1 ! -name '.git' ! -name '.github' -exec rm -rf {} +
+          cp -a source/adapters/php/. mirror/
+          cp source/LICENSE mirror/LICENSE
+          sed -i 's#https://github.com/prauga/flexdoc/issues#https://github.com/Prauga/flexdoc/issues#' mirror/composer.json
+          sed -i 's#"source": "https://github.com/prauga/flexdoc"#"source": "https://github.com/Prauga/flexdoc-php"#' mirror/composer.json
+
+      - name: Commit synchronized package
+        working-directory: mirror
+        run: |
+          git config user.name 'Vishnu R'
+          git config user.email '45818225+bluejeans117@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'PHP distribution is already synchronized.'
+            exit 0
+          fi
+          git commit -m 'Sync PHP package from flexdoc'
+          git push origin HEAD:main
